@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - develop
+  push:
+    branches:
+      - main
+      - develop
 
 jobs:
   test_and_lint:
@@ -32,3 +36,33 @@ jobs:
         run: |
           coverage run -m pytest
           coverage report --fail-under=80
+
+  # Job de deploy para Homologação
+  deploy_homolog:
+    needs: [test_and_lint]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Deploy to Homologation
+        run: |
+          echo "Iniciando deploy para o ambiente de homologação..."
+          echo "Deploy para o ambiente de homologação concluído!"
+
+  # Job de deploy para Produção
+  deploy_prod:
+    needs: [deploy_homolog]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Deploy to Production
+        run: |
+          echo "Iniciando deploy para o ambiente de produção..."
+          echo "Deploy para o ambiente de produção concluído! 🎉"

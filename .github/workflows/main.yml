@@ -1,68 +1,109 @@
-name: CI
+# Nome do seu fluxo de trabalho, que aparece na aba "Actions"
+name: CI/CD Pipeline
 
+# Eventos que disparam este fluxo de trabalho
 on:
+  # Dispara quando um Pull Request é aberto para as branches main ou develop
   pull_request:
     branches:
       - main
       - develop
+  # Dispara quando um Pull Request é mesclado (merge) ou quando um commit é enviado diretamente
   push:
     branches:
       - main
       - develop
 
+# Seção de "Jobs", que são as tarefas que serão executadas
 jobs:
+  # Job 1: Testes e Análise de Qualidade (Quality Gates)
   test_and_lint:
+    name: Testes e Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Instalar dependências
         run: |
           python -m pip install --upgrade pip
           pip install ruff black pytest coverage
 
-      - name: Lint and format
+      - name: Análise de Lint e Formatação
         run: |
           ruff check .
           black --check . --diff
 
-      - name: Run tests and get coverage
+      - name: Rodar Testes e Cobertura
         run: |
           coverage run -m pytest
           coverage report --fail-under=80
 
-  # Job de deploy para Homologação
+  # Job 2: Deploy para Homologação (staging)
   deploy_homolog:
+    name: Deploy para Homologação
+    # Este job só será executado se o job 'test_and_lint' tiver sucesso
     needs: [test_and_lint]
     runs-on: ubuntu-latest
+    # Apenas executa se a branch for 'develop'
     if: github.ref == 'refs/heads/develop'
+    # Define o ambiente de deploy para usar os segredos do ambiente 'staging'
     environment:
       name: staging
     steps:
-      - name: Checkout code
+      - name: Checkout do código
         uses: actions/checkout@v4
-      - name: Deploy to Homologation
+      - name: Deploy para Homologação
         run: |
           echo "Iniciando deploy para o ambiente de homologação..."
+          # Aqui vão os comandos reais de deploy (ex: docker build, push, etc.)
           echo "Deploy para o ambiente de homologação concluído!"
 
-  # Job de deploy para Produção
+  # Job 3: Deploy para Produção (production)
   deploy_prod:
+    name: Deploy para Produção
+    # Este job só será executado se o job 'deploy_homolog' tiver sucesso
     needs: [deploy_homolog]
     runs-on: ubuntu-latest
+    # Apenas executa se a branch for 'main'
     if: github.ref == 'refs/heads/main'
+    # Define o ambiente de deploy para usar os segredos do ambiente 'production'
     environment:
       name: production
     steps:
-      - name: Checkout code
+      - name: Checkout do código
         uses: actions/checkout@v4
-      - name: Deploy to Production
+      - name: Deploy para Produção
         run: |
           echo "Iniciando deploy para o ambiente de produção..."
+          # Aqui vão os comandos reais de deploy
           echo "Deploy para o ambiente de produção concluído! 🎉"
+
+  # Job 4: Gerar Release e Tag (Versionamento)
+  release:
+    name: Gerar Release
+    # Este job só será executado se o job 'deploy_prod' tiver sucesso
+    needs: [deploy_prod]
+    runs-on: ubuntu-latest
+    # Apenas executa se a branch for 'main'
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+        with:
+          # Necessário para que o semantic-release analise todo o histórico de commits
+          fetch-depth: 0 
+
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v3
+        with:
+          semantic_version: 19
+        env:
+          # Token gerado automaticamente pelo GitHub para o workflow.
+          # É usado para criar a tag e o release.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

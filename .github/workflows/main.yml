@@ -64,6 +64,14 @@ jobs:
           # Aqui vão os comandos reais de deploy (ex: docker build, push, etc.)
           echo "Deploy para o ambiente de homologação concluído!"
 
+      # Passo adicionado para notificação no Slack
+      - name: Notificação de sucesso no Slack
+        uses: rtCamp/action-slack-notify@v2
+        if: success()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_MESSAGE: 'Deploy em HOMOLOGAÇÃO concluído!'
+
   # Job 3: Deploy para Produção (production)
   deploy_prod:
     name: Deploy para Produção
@@ -83,6 +91,14 @@ jobs:
           echo "Iniciando deploy para o ambiente de produção..."
           # Aqui vão os comandos reais de deploy
           echo "Deploy para o ambiente de produção concluído! 🎉"
+      
+      # Passo adicionado para notificação no Slack
+      - name: Notificação de sucesso no Slack
+        uses: rtCamp/action-slack-notify@v2
+        if: success()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_MESSAGE: ' Deploy em PRODUÇÃO concluído! '
 
   # Job 4: Gerar Release e Tag (Versionamento)
   release:
